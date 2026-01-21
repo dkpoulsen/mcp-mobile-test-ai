@@ -53,6 +53,7 @@ services:
       LLM_TEMPERATURE: 0.5
       LOG_LEVEL: error
       MAX_PARALLEL: 1
+      NODE_OPTIONS: --max-old-space-size=2560
     volumes:
       - ./tests:/app/tests:ro
       - ./src:/app/src:ro
@@ -66,6 +67,9 @@ services:
     networks:
       - test-network
     command: ["npm", "run", "test"]
+    mem_limit: 3g
+    memswap_limit: 3g
+    shm_size: 256mb
 
 volumes:
   test_reports:

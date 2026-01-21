@@ -55,6 +55,7 @@ services:
       LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-1000}
       LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.5}
       LOG_LEVEL: ${LOG_LEVEL:-warn}
+      NODE_OPTIONS: --max-old-space-size=2560
     volumes:
       - ./tests:/app/tests:ro
       - ./src:/app/src:ro
@@ -68,6 +69,9 @@ services:
     networks:
       - mcp-network
     command: ["npm", "run", "test"]
+    mem_limit: 3g
+    memswap_limit: 3g
+    shm_size: 256mb
 
   # API Service (for development/testing with API)
   api:
