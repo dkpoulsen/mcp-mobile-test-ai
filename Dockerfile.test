@@ -1,5 +1,5 @@
 # Dockerfile for running tests in isolated environment
-FROM node:18-alpine AS test
+FROM node:20-alpine AS test
 
 # Install test dependencies including Playwright browsers
 RUN apk add --no-cache \

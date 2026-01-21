@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: "18"
+  NODE_VERSION: "20"
   POSTGRES_USER: mcpmobile
   POSTGRES_PASSWORD: mcpmobilepass
   POSTGRES_DB: mcpmobiletest_test
@@ -325,18 +325,18 @@ jobs:
   # iOS matrix tests - runs on multiple iOS versions (macOS only)
   ios-tests:
     name: iOS Tests (${{ matrix.os-version }})
-    runs-on: macos-13
+    runs-on: macos-14
     needs: lint
     strategy:
       fail-fast: false
       matrix:
-        os-version: [ios-16, ios-17]
+        os-version: [ios-17, ios-18]
         device-type: [iPhone 14]
         include:
-          - os-version: ios-16
-            runtime-id: com.apple.CoreSimulator.SimRuntime.iOS-16-4
           - os-version: ios-17
-            runtime-id: com.apple.CoreSimulator.SimRuntime.iOS-17-0
+            runtime-id: com.apple.CoreSimulator.SimRuntime.iOS-17-5
+          - os-version: ios-18
+            runtime-id: com.apple.CoreSimulator.SimRuntime.iOS-18-2
 
     steps:
       - name: Checkout code

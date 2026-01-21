@@ -1,6 +1,5 @@
 # Docker Compose configuration specifically for running tests
 # Usage: docker compose -f docker-compose.test.yml up --abort-on-container-exit
-version: "3.9"
 
 services:
   postgres-test:

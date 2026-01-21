@@ -1,5 +1,5 @@
 # Multi-stage build for MCP Mobile Test AI
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # Install dependencies for native modules
 RUN apk add --no-cache libc6-compat openssl

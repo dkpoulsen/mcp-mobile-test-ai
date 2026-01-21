@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: "18"
+  NODE_VERSION: "20"
   POSTGRES_USER: mcpmobile
   POSTGRES_PASSWORD: mcpmobilepass
   POSTGRES_DB: mcpmobiletest
@@ -37,8 +37,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          install: true
 
       # Cache Docker layers to speed up builds
       - name: Cache Docker layers
