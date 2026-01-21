@@ -1,0 +1,37 @@
+# Dockerfile for running tests in isolated environment
+FROM node:18-alpine AS test
+
+# Install test dependencies including Playwright browsers
+RUN apk add --no-cache \
+    libc6-compat \
+    openssl \
+    bash \
+    chromium \
+    chromium-chromedriver
+
+# Set environment for Playwright to use installed Chromium
+ENV PLAYWRIGHT_BROWSERS_PATH=/usr/bin
+ENV CHROMIUM_PATH=/usr/bin/chromium
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json ./
+
+# Install all dependencies (including dev dependencies for testing)
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p /app/test-reports /app/logs
+
+# Set test environment
+ENV NODE_ENV=test
+
+# Expose port for potential test server
+EXPOSE 9323
+
+# Default command runs tests
+CMD ["npm", "run", "test"]

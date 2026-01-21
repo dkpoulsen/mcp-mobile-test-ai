@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-test
+coverage
+build
+.git
+.automaker
+*.md
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

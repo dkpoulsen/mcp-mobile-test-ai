@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+dist-test/
+build/
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Package manager lockfiles (keep one based on your preference)
+# Uncomment the one you use:
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Misc
+.cache/
+
+/src/generated/prisma
+
+# AutoMaker internal files
+.automaker/
+
+# Test artifacts and temporary files
+test-artifacts/
+test-images-temp/
+test-screenshots/
+screenshots/
+artifacts/
+playwright-report/
+visual-baselines/

@@ -1,0 +1,68 @@
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.development.example
+!.env.production.example
+!.env.test.example
+
+# Test coverage and reports
+coverage/
+test-reports/
+*.lcov
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Docker files
+Dockerfile*
+Dockerfile.*
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+README.md
+*.md
+!README.md
+
+# Misc
+.cache/
+tmp/
+temp/
+*.tmp
+
+# Playwright
+playwright-report/
+playwright/.cache/
+
+# Dashboard
+dashboard/node_modules/
+dashboard/dist/
+dashboard/build/

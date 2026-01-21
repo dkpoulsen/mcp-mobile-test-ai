@@ -1,0 +1,541 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Device represents a mobile device (emulator/simulator or real device)
+model Device {
+  id          String   @id @default(cuid())
+  platform    Platform // ios or android
+  name        String
+  osVersion   String
+  isEmulator  Boolean  @default(false)
+  screenWidth  Int?
+  screenHeight Int?
+  status      DeviceStatus @default(AVAILABLE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  testRuns    TestRun[]
+
+  @@unique([platform, name, osVersion])
+  @@index([platform])
+  @@index([status])
+}
+
+// TestSuite represents a collection of test cases
+model TestSuite {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  tags        String[] // Stored as array
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  testCases   TestCase[]
+  testRuns    TestRun[]
+  flakyTests  FlakyTest[]
+  quarantines TestQuarantine[]
+  retryAnalytics RetryAnalytics[]
+
+  @@index([tags])
+}
+
+// TestCase represents an individual test case
+model TestCase {
+  id              String      @id @default(cuid())
+  testSuiteId     String
+  name            String
+  description     String      @db.Text
+  expectedOutcome String      @db.Text
+  timeout         Int?        // Timeout in milliseconds
+  tags            String[]    // Stored as array
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  testSuite       TestSuite   @relation(fields: [testSuiteId], references: [id], onDelete: Cascade)
+  testResults     TestResult[]
+  flakyTest       FlakyTest?
+  quarantine      TestQuarantine?
+  retryAnalytics  RetryAnalytics[]
+
+  @@unique([testSuiteId, name])
+  @@index([testSuiteId])
+  @@index([tags])
+}
+
+// TestRun represents a single execution of a test suite on a device
+model TestRun {
+  id          String      @id @default(cuid())
+  testSuiteId String
+  deviceId    String
+  status      RunStatus   @default(PENDING)
+  startedAt   DateTime?
+  completedAt DateTime?
+  totalDuration Int?      // Total duration in milliseconds
+  passedCount Int         @default(0)
+  failedCount Int         @default(0)
+  skippedCount Int        @default(0)
+  metadata    Json?       // Additional metadata as JSON
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  testSuite   TestSuite   @relation(fields: [testSuiteId], references: [id], onDelete: Cascade)
+  device      Device      @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  testResults TestResult[]
+  artifacts   Artifact[]
+
+  @@index([testSuiteId])
+  @@index([deviceId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+// TestResult represents the result of a single test case execution
+model TestResult {
+  id          String      @id @default(cuid())
+  testRunId   String
+  testCaseId  String
+  status      ResultStatus
+  duration    Int         // Duration in milliseconds
+  errorMessage String?    @db.Text
+  stackTrace  String?     @db.Text
+  metadata    Json?       // Additional metadata as JSON
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  testRun     TestRun     @relation(fields: [testRunId], references: [id], onDelete: Cascade)
+  testCase    TestCase    @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  failureAnalysis FailureAnalysis?
+
+  @@unique([testRunId, testCaseId])
+  @@index([testRunId])
+  @@index([testCaseId])
+  @@index([status])
+}
+
+// FailureAnalysis represents AI-powered test failure analysis
+model FailureAnalysis {
+  id              String              @id @default(cuid())
+  testResultId    String              @unique
+  category        FailureCategory
+  severity        AnalysisSeverity
+  summary         String              @db.Text
+  rootCause       Json                // RootCauseHypothesis as JSON
+  flakiness       Json                // FlakinessAnalysis as JSON
+  suggestedFixes  Json                // FixAction[] as JSON
+  notes           Json                // string[] as JSON
+  analyzedAt      DateTime            @default(now())
+  processingTimeMs Int
+  tokensUsed      Json?               // Token usage stats as JSON
+
+  // Relations
+  testResult      TestResult          @relation(fields: [testResultId], references: [id], onDelete: Cascade)
+
+  @@index([testResultId])
+  @@index([category])
+  @@index([severity])
+  @@index([analyzedAt])
+}
+
+// Enums for Failure Analysis
+enum FailureCategory {
+  ASSERTION
+  ELEMENT_NOT_FOUND
+  TIMEOUT
+  NETWORK
+  CRASH
+  SETUP
+  DATA
+  ENVIRONMENT
+  RACE_CONDITION
+  UNKNOWN
+}
+
+enum AnalysisSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+// Artifact represents files generated during test execution (logs, screenshots, videos)
+model Artifact {
+  id          String      @id @default(cuid())
+  testRunId   String
+  type        ArtifactType
+  path        String      // File path or URL
+  size        BigInt?     // File size in bytes
+  mimeType    String?
+  metadata    Json?       // Additional metadata as JSON
+  createdAt   DateTime    @default(now())
+
+  // Relations
+  testRun     TestRun     @relation(fields: [testRunId], references: [id], onDelete: Cascade)
+
+  @@index([testRunId])
+  @@index([type])
+}
+
+// Enums
+enum Platform {
+  IOS
+  ANDROID
+}
+
+enum DeviceStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+  MAINTENANCE
+}
+
+enum RunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ResultStatus {
+  PASSED
+  FAILED
+  SKIPPED
+  TIMEOUT
+}
+
+enum ArtifactType {
+  LOG
+  SCREENSHOT
+  VIDEO
+  HAR
+  TRACE
+  OTHER
+}
+
+// NotificationRule represents a configurable notification rule
+model NotificationRule {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  enabled     Boolean  @default(true)
+  triggers    String[] // Stored as array of trigger types
+  channels    String[] // Stored as array of channel types (slack, email, webhook)
+  filters     Json?    // Filter conditions as JSON
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  notifications NotificationLog[]
+
+  @@index([enabled])
+  @@index([triggers])
+}
+
+// NotificationLog represents a notification delivery record
+model NotificationLog {
+  id          String              @id @default(cuid())
+  ruleId      String?
+  testRunId   String?
+  channel     NotificationChannel
+  status      NotificationStatus  @default(PENDING)
+  trigger     String?
+  error       String?             @db.Text
+  response    Json?               // Response data from notification service
+  sentAt      DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  // Relations
+  rule        NotificationRule?   @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+
+  @@index([testRunId])
+  @@index([channel])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Enums
+enum NotificationChannel {
+  SLACK
+  EMAIL
+  WEBHOOK
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  RETRYING
+}
+
+// FlakyTest represents a test detected as having inconsistent pass/fail patterns
+model FlakyTest {
+  id              String        @id @default(cuid())
+  testCaseId      String        @unique
+  testSuiteId     String
+  status          FlakyStatus   @default(DETECTED)
+  flakinessScore  Float         @default(0) // 0-1, higher is more flaky
+
+  // Detection thresholds
+  failureThreshold Int          @default(3)  // Failures before marked flaky
+  passThreshold    Int          @default(5)  // Passes before unmarked
+
+  // Statistics
+  totalRuns       Int           @default(0)
+  passCount       Int           @default(0)
+  failCount       Int           @default(0)
+
+  // Recent execution pattern (last 10 runs: P=pass, F=fail)
+  recentPattern   String        @default("")
+
+  // Analysis data
+  failurePattern  Json?         // Detailed pattern analysis
+  suggestedFixes  Json?         // AI-suggested fixes
+
+  // Quarantine reference (if quarantined)
+  quarantineId    String?       @unique
+
+  // Team assignment
+  assignedTeam    String?
+  assignedUser    String?
+
+  lastAnalyzedAt  DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  testCase        TestCase      @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  testSuite       TestSuite     @relation(fields: [testSuiteId], references: [id], onDelete: Cascade)
+  quarantine      TestQuarantine? @relation(fields: [quarantineId], references: [id])
+  history         FlakyTestHistory[]
+
+  @@index([testSuiteId])
+  @@index([status])
+  @@index([flakinessScore])
+  @@index([assignedTeam])
+}
+
+// TestQuarantine represents a quarantined test that is excluded from normal runs
+model TestQuarantine {
+  id              String            @id @default(cuid())
+  testCaseId      String            @unique
+  testSuiteId     String
+  status          QuarantineStatus  @default(ACTIVE)
+
+  // Reason for quarantine
+  reason          String            @db.Text
+  category        QuarantineCategory
+
+  // Detection details
+  detectedAt      DateTime          @default(now())
+  detectionMethod String            // How it was detected (automatic, manual, ai)
+
+  // Metadata
+  notes           String?           @db.Text
+  failurePattern  Json?             // Pattern that caused quarantine
+  suggestedFixes  Json?             // Array of suggested fixes
+
+  // Expiration and review
+  expiresAt       DateTime?
+  reviewedAt      DateTime?
+  reviewedBy      String?
+
+  // Stabilization tracking (for auto-promotion)
+  consecutivePasses Int            @default(0)
+  requiredPasses   Int            @default(5) // Passes needed to exit quarantine
+
+  // Team assignment
+  assignedTeam    String?
+  assignedUser    String?
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  testCase        TestCase          @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  testSuite       TestSuite         @relation(fields: [testSuiteId], references: [id], onDelete: Cascade)
+  flakyTests      FlakyTest[]
+
+  @@index([testSuiteId])
+  @@index([status])
+  @@index([assignedTeam])
+  @@index([expiresAt])
+}
+
+// FlakyTestHistory tracks historical analysis of flaky tests
+model FlakyTestHistory {
+  id              String      @id @default(cuid())
+  flakyTestId     String
+  testCaseId      String
+
+  // Snapshot at time of analysis
+  flakinessScore  Float
+  totalRuns       Int
+  passCount       Int
+  failCount       Int
+  recentPattern   String
+
+  // Analysis details
+  status          FlakyStatus
+  analysisType    String      // detected, promoted, demoted, reanalyzed
+
+  // Metadata
+  metadata        Json?
+  analyzedAt      DateTime    @default(now())
+
+  // Relations
+  flakyTest       FlakyTest   @relation(fields: [flakyTestId], references: [id], onDelete: Cascade)
+
+  @@index([flakyTestId])
+  @@index([testCaseId])
+  @@index([analyzedAt])
+}
+
+// Enums for Flaky Test Management
+enum FlakyStatus {
+  DETECTED       // Initially detected as flaky
+  MONITORING     // Being monitored for pattern confirmation
+  QUARANTINED    // Moved to quarantine
+  STABILIZING    // Showing signs of improvement
+  STABLE         // No longer flaky
+  IGNORED        // Manually ignored from flaky detection
+}
+
+enum QuarantineStatus {
+  ACTIVE         // Currently quarantined
+  STABILIZING    // Being tested for stability
+  RESOLVED       // Fixed and promoted back
+  IGNORED        // Permanently ignored
+  EXPIRED        // Quarantine period expired
+}
+
+enum QuarantineCategory {
+  FLAKY          // Inconsistent pass/fail
+  TIMEOUT        // Consistent timeouts
+  ENVIRONMENT    // Environment-specific issues
+  DEPRECATED     // Test is outdated
+  UNDER_REVIEW   // Under investigation
+}
+
+// RetryAnalytics tracks retry strategy effectiveness for test cases
+model RetryAnalytics {
+  id              String        @id @default(cuid())
+  testCaseId      String
+  testSuiteId     String
+
+  // Failure category this analytics applies to
+  failureCategory RetryFailureCategory
+
+  // Retry strategy that was tracked
+  strategyType    RetryStrategyType
+
+  // Statistics
+  totalAttempts   Int           @default(0)
+  successfulAttempts Int        @default(0)
+  failedAttempts  Int           @default(0)
+
+  // Timing statistics
+  avgDurationMs   Int           @default(0)
+  minDurationMs   Int?
+  maxDurationMs   Int?
+
+  // Success rate (0-1)
+  successRate     Float         @default(0)
+
+  // Last time this strategy was used and succeeded
+  lastSuccessAt   DateTime?
+  lastFailureAt   DateTime?
+
+  // Metadata about what parameters were used
+  strategyParams  Json?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  testCase        TestCase      @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  testSuite       TestSuite     @relation(fields: [testSuiteId], references: [id], onDelete: Cascade)
+  attemptHistory  RetryAttemptHistory[]
+
+  @@unique([testCaseId, failureCategory, strategyType])
+  @@index([testCaseId])
+  @@index([testSuiteId])
+  @@index([failureCategory])
+  @@index([strategyType])
+  @@index([successRate])
+}
+
+// RetryAttemptHistory tracks individual retry attempts for detailed analysis
+model RetryAttemptHistory {
+  id              String        @id @default(cuid())
+  retryAnalyticsId String
+
+  // Attempt details
+  attemptNumber   Int
+  strategyType    RetryStrategyType
+
+  // Result
+  success         Boolean
+  durationMs      Int
+  errorCategory   RetryFailureCategory
+
+  // Error details if failed
+  errorMessage    String?       @db.Text
+  errorType       String?
+
+  // Context
+  testRunId       String
+  deviceId        String?
+
+  // Strategy-specific parameters used
+  delayMs         Int
+  timeoutMs       Int?
+  alternativeLocator Json?
+  preRetryAction  String?
+
+  createdAt       DateTime      @default(now())
+
+  // Relations
+  retryAnalytics  RetryAnalytics @relation(fields: [retryAnalyticsId], references: [id], onDelete: Cascade)
+
+  @@index([retryAnalyticsId])
+  @@index([testRunId])
+  @@index([createdAt])
+  @@index([success])
+}
+
+// Enums for Retry Analytics
+enum RetryFailureCategory {
+  ELEMENT_NOT_FOUND
+  TIMEOUT
+  NETWORK
+  ASSERTION
+  CRASH
+  STALE_ELEMENT
+  NOT_INTERACTABLE
+  UNKNOWN
+}
+
+enum RetryStrategyType {
+  EXPONENTIAL_BACKOFF
+  FIXED_DELAY
+  IMMEDIATE
+  DIFFERENT_LOCATOR
+  DIFFERENT_DEVICE
+  LONGER_TIMEOUT
+  NO_RETRY
+}

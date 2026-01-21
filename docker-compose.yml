@@ -1,0 +1,121 @@
+version: "3.9"
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: mcp-mobile-test-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mcpmobile}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mcpmobilepass}
+      POSTGRES_DB: ${POSTGRES_DB:-mcpmobiletest}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mcpmobile}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mcp-network
+
+  # Redis for Bull Queue
+  redis:
+    image: redis:7-alpine
+    container_name: mcp-mobile-test-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redispass}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mcp-network
+
+  # Test Service
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: mcp-mobile-test-runner
+    environment:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mcpmobile}:${POSTGRES_PASSWORD:-mcpmobilepass}@postgres:5432/${POSTGRES_DB:-mcpmobiletest}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redispass}@redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redispass}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-1000}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.5}
+      LOG_LEVEL: ${LOG_LEVEL:-warn}
+    volumes:
+      - ./tests:/app/tests:ro
+      - ./src:/app/src:ro
+      - test_reports:/app/test-reports
+      - test_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - mcp-network
+    command: ["npm", "run", "test"]
+
+  # API Service (for development/testing with API)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-mobile-test-api
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mcpmobile}:${POSTGRES_PASSWORD:-mcpmobilepass}@postgres:5432/${POSTGRES_DB:-mcpmobiletest}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redispass}@redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redispass}
+      API_PORT: ${API_PORT:-3000}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-2000}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.7}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "${API_PORT:-3000}:3000"
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - mcp-network
+    profiles:
+      - api
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  test_reports:
+    driver: local
+  test_logs:
+    driver: local
+
+networks:
+  mcp-network:
+    driver: bridge
